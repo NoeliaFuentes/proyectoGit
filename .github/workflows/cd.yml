@@ -1,0 +1,65 @@
+
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - README.md
+  workflow_dispatch:
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Actualizar version
+        shell: powershell
+        run: |
+          $contenido = Get-Content README.md -Raw
+
+          if ($contenido -match 'AppVersion-0') {
+            $contenido = $contenido.Replace('AppVersion-0', 'AppVersion-1')
+            Set-Content README.md $contenido
+          }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add README.md
+          git diff --cached --quiet
+
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "Actualizar version de la aplicacion"
+            git push
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
+  validate-prod:
+    needs: bump-version
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Validar token de produccion
+        shell: powershell
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:PROD_TOKEN)) {
+            Write-Error "El secret PROD_TOKEN no esta configurado"
+            exit 1
+          }
+
+          if ($env:LOCAL_PROD_TOKEN -eq $env:PROD_TOKEN) {
+            Write-Output "Token de produccion correcto"
+          }
+          else {
+            Write-Error "Los tokens de produccion no coinciden"
+            exit 1
+          }
