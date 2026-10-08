@@ -5,7 +5,7 @@ Repositorio para realizar las prácticas de Git y GitHub Actions.
 
 ## Versión de la aplicación
 
-AppVersion-1
+AppVersion-2
 
 ## Descripción
 
@@ -13,3 +13,4 @@ Proyecto para practicar integración continua (CI) y despliegue continuo (CD) me
 
 Nueva feature: main
 Añadida feature: feature/mi-feature-ud2
+Ultima actualizacion: 2026-10-08 11:51:53 UTC
