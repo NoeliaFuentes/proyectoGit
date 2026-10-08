@@ -11,3 +11,4 @@ AppVersion-1
 
 Proyecto para practicar integración continua (CI) y despliegue continuo (CD) mediante GitHub Actions.
 
+Nueva feature: main
