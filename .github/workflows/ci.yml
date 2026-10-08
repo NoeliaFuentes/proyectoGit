@@ -11,40 +11,63 @@ permissions:
 
 jobs:
   update-readme:
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
+          persist-credentials: true
 
       - name: Actualizar README
-        shell: bash
+        shell: powershell
+        env:
+          FEATURE_NAME: ${{ github.head_ref }}
         run: |
-          touch README.md
-          echo "Nueva feature: ${{ github.head_ref }}" >> README.md
+          $linea = "Nueva feature: $env:FEATURE_NAME"
+
+          if (!(Test-Path README.md)) {
+            New-Item README.md -ItemType File | Out-Null
+          }
+
+          $contenido = Get-Content README.md -Raw
+
+          if ($contenido -notlike "*$linea*") {
+            Add-Content README.md $linea
+          }
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add README.md
-          git commit -m "Actualizar README con nueva feature" || true
-          git push
+          git diff --cached --quiet
+
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "Actualizar README con nueva feature"
+            git push origin HEAD:$env:FEATURE_NAME
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
 
   validate-dev:
     needs: update-readme
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
       - name: Validar token de desarrollo
-        shell: bash
+        shell: powershell
         env:
           DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
         run: |
-          if [ "$LOCAL_DEV_TOKEN" = "$DEV_TOKEN" ]; then
-            echo "Token de desarrollo correcto"
-          else
-            echo "ERROR: Los tokens no coinciden"
+          if ([string]::IsNullOrEmpty($env:DEV_TOKEN)) {
+            Write-Error "DEV_TOKEN no esta configurado"
             exit 1
-          fi
+          }
+
+          if ($env:LOCAL_DEV_TOKEN -eq $env:DEV_TOKEN) {
+            Write-Output "Token de desarrollo correcto"
+          }
+          else {
+            Write-Error "Los tokens no coinciden"
+            exit 1
+          }
