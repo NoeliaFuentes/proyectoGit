@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Actualizar version
-        shell: pwsh
+        shell: powershell
         run: |
           $contenido = Get-Content README.md -Raw
 
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Validar token de produccion
-        shell: pwsh
+        shell: powershell
         env:
           PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
         run: |
