@@ -1,0 +1,49 @@
+
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: self-hosted
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Actualizar version
+        shell: bash
+        run: |
+          if grep -q "AppVersion-0" README.md; then
+            sed -i 's/AppVersion-0/AppVersion-1/' README.md
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add README.md
+          git diff --cached --quiet || git commit -m "Actualizar version de la aplicacion"
+          git push
+
+  validate-prod:
+    needs: bump-version
+    runs-on: self-hosted
+
+    steps:
+      - name: Validar token de produccion
+        shell: bash
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
+        run: |
+          if [ "$LOCAL_PROD_TOKEN" = "$PROD_TOKEN" ] && [ -n "$PROD_TOKEN" ]; then
+            echo "Token de produccion correcto"
+          else
+            echo "ERROR: Token de produccion incorrecto"
+            exit 1
+          fi
