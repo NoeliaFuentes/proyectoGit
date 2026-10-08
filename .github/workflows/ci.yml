@@ -5,49 +5,57 @@ on:
   pull_request:
     branches:
       - develop
+    types: [opened, synchronize, reopened]
+
+  push:
+    branches:
+      - develop
+    paths-ignore:
+      - README.md
+
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   update-readme:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
           persist-credentials: true
 
       - name: Actualizar README
-        shell: powershell
+        shell: bash
         env:
-          FEATURE_NAME: ${{ github.head_ref }}
+          FEATURE_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          $linea = "Nueva feature: $env:FEATURE_NAME"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            LINEA="Añadida feature: $FEATURE_NAME"
 
-          if (!(Test-Path README.md)) {
-            New-Item README.md -ItemType File | Out-Null
-          }
+            touch README.md
 
-          $contenido = Get-Content README.md -Raw
+            if ! grep -Fxq "$LINEA" README.md; then
+              echo "$LINEA" >> README.md
+            fi
 
-          if ($contenido -notlike "*$linea*") {
-            Add-Content README.md $linea
-          }
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
 
-          git add README.md
-          git diff --cached --quiet
-
-          if ($LASTEXITCODE -ne 0) {
-            git commit -m "Actualizar README con nueva feature"
-            git push origin HEAD:$env:FEATURE_NAME
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
+            if ! git diff --cached --quiet; then
+              git commit -m "Actualizar README con nueva feature"
+              git push origin "HEAD:$FEATURE_NAME"
+            fi
+          else
+            echo "Evento $EVENT_NAME: no hay nueva feature que registrar."
+          fi
 
   validate-dev:
     needs: update-readme
